@@ -1,0 +1,32 @@
+{
+  "name": "zhuqu-ai",
+  "version": "1.0.0",
+  "description": "中文小说 AI 痕迹辅助判断工具：55 项可量化特征 + 明码阈值，输出 AI 味指数、10 维拆解、55 项明细与可疑段落原文",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "scan": "node scan.js",
+    "explain": "node explain.js",
+    "diagnose": "node diagnose.js",
+    "calibrate": "node calibrate.js",
+    "eval": "node eval.js",
+    "bootstrap": "node bootstrap.js"
+  },
+  "keywords": [
+    "chinese",
+    "novel",
+    "ai-detection",
+    "stylometry",
+    "writing",
+    "网文",
+    "AI味"
+  ],
+  "author": "qscnet",
+  "license": "MIT",
+  "dependencies": {
+    "ip2region": "^2.3.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

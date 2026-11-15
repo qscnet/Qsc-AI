@@ -1,0 +1,52 @@
+# ===== 密钥与凭证（绝对不能上传）=====
+keys.json
+*.key
+*.pem
+.env
+.env.*
+secrets.json
+
+# ===== 用户数据（含用户提交的原文，涉及隐私与版权）=====
+testlogs.jsonl
+usage.json
+*.log
+
+# ===== 语料（含受版权保护的小说原文）=====
+seed/
+# 如果你以后要放一个极小的示例语料，用这个目录名，它不会被忽略：
+!seed-demo/
+
+# ===== 构建产物 =====
+_deploy/
+_backups/
+dist/
+build/
+*.exe
+*.pkg
+*.dll
+*.so
+*.dylib
+node_modules/
+__pycache__/
+*.pyc
+
+# ===== 本地运行产物 =====
+out-*.txt
+last-run.txt
+*.bak
+*.tmp
+
+# ===== 本地快捷方式与私人文件 =====
+*.lnk
+进入系统.txt
+FileZilla.lnk
+QSCBakup.lnk
+
+# ===== 系统垃圾 =====
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+  samples.backup.jsonl
+samples.before-clean.jsonl

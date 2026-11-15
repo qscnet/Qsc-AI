@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 味体检 · 后台</title>
+<link rel="stylesheet" href="assets/styles.css?v=20261027d">
+<style>
+  body{background:#f5f7fb}
+  .adm{max-width:1180px;margin:0 auto;padding:22px 20px 60px}
+  .adm h1{font-size:19px;margin:0 0 4px}
+  .adm .sub{font-size:12.5px;color:#8b96a8;margin:0 0 18px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:11px;margin-bottom:18px}
+  .card{background:#fff;border:1px solid #e6ebf3;border-radius:11px;padding:13px 15px}
+  .card b{display:block;font-size:22px;color:#1f2a3d;line-height:1.25}
+  .card span{font-size:12px;color:#8b96a8}
+  .card em{font-style:normal;font-size:11.5px;color:#5b6b82;display:block;margin-top:3px}
+  .sec{background:#fff;border:1px solid #e6ebf3;border-radius:12px;padding:15px 17px;margin-bottom:16px}
+  .sec h2{font-size:14px;margin:0 0 11px;color:#26334a}
+  .bars{display:flex;align-items:flex-end;gap:5px;height:110px;padding-top:6px}
+  .bars div{flex:1;background:linear-gradient(180deg,#7c9bff,#4a6cf7);border-radius:3px 3px 0 0;min-height:2px;position:relative}
+  .bars div i{position:absolute;top:-15px;left:0;right:0;text-align:center;font-size:10px;color:#8b96a8;font-style:normal}
+  .bars-x{display:flex;gap:5px;margin-top:4px}
+  .bars-x div{flex:1;text-align:center;font-size:9.5px;color:#b0bacb;overflow:hidden}
+  table{width:100%;border-collapse:collapse}
+  th,td{padding:7px 8px;border-bottom:1px solid #eef2f7;text-align:left;font-size:12.5px}
+  th{color:#8b96a8;font-weight:600;font-size:11.5px;background:#fafbfd}
+  td.mono{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11.5px}
+  .scroll{max-height:360px;overflow:auto;border:1px solid #eef2f7;border-radius:8px}
+  .gate{max-width:420px;margin:60px auto;background:#fff;border:1px solid #e6ebf3;border-radius:12px;padding:26px}
+  .gate h2{margin:0 0 8px;font-size:16px}
+  .gate p{font-size:12.5px;color:#8b96a8;margin:0 0 14px;line-height:1.7}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+  .tag-role{font-size:11px;padding:1px 7px;border-radius:20px;background:#eef2ff;color:#4a6cf7}
+  .tag-role.int{background:#fff1e6;color:#c2410c}
+  .tag-off{font-size:11px;color:#b91c1c}
+
+  .geo { color: #475467; white-space: nowrap; }
+  .geo-t { color: #c3cbd9; }
+  .geo-none { color: #b0bacb; }
+</style>
+</head>
+<body>
+<div class="adm" id="app" hidden>
+  <h1>AI 味体检 · 后台</h1>
+  <p class="sub">检测记录 · 客户 Key · 样本与模型状态　<span id="who" style="color:#c2410c;font-weight:600"></span></p>
+
+  <div class="cards" id="cards"></div>
+
+  <div class="sec" id="health-sec" style="display:none">
+    <h2>系统健康</h2>
+    <div id="health-body"></div>
+  </div>
+
+  <div class="sec">
+    <h2>每日检测量（最近 30 天）</h2>
+    <div class="bars" id="bars"></div>
+    <div class="bars-x" id="barsx"></div>
+  </div>
+
+  <div class="sec">
+    <h2>测试记录　<span class="small muted" id="logs-sum"></span></h2>
+    <div class="row" style="margin-bottom:9px">
+      <button class="ghost" id="btn-refresh">刷新</button>
+      <button class="ghost" id="btn-csv">导出 CSV</button>
+      <input id="f-ip" placeholder="按 IP 过滤" style="max-width:190px;padding:6px 9px;border:1px solid #dfe6f1;border-radius:7px;font-size:12.5px">
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="width:130px">时间</th><th style="width:126px">IP</th><th style="width:150px">地区</th><th style="width:64px">身份</th>
+          <th style="width:56px">字数</th><th style="width:52px">分数</th><th>内容（前 500 字）</th></tr></thead>
+        <tbody id="logs-body"><tr><td colspan="7" class="small muted">加载中…</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2>客户 Key</h2>
+    <div class="row" style="margin-bottom:10px">
+      <input id="k-name" placeholder="名字" style="width:150px;padding:6px 9px;border:1px solid #dfe6f1;border-radius:7px;font-size:12.5px">
+      <select id="k-role" style="padding:6px 9px;border:1px solid #dfe6f1;border-radius:7px;font-size:12.5px">
+        <option value="public">公测</option><option value="internal">内部</option>
+      </select>
+      <input id="k-quota" placeholder="额度(token)，留空=默认" style="width:190px;padding:6px 9px;border:1px solid #dfe6f1;border-radius:7px;font-size:12.5px">
+      <button class="primary" id="btn-addkey">新增 / 覆盖</button>
+      <span class="small muted" id="key-msg"></span>
+    </div>
+    <div class="scroll">
+      <table>
+        <thead><tr><th style="width:190px">Key</th><th style="width:130px">名字</th><th style="width:80px">角色</th>
+          <th style="width:120px">额度</th><th style="width:80px">已用</th><th style="width:90px">调用次数</th><th>状态</th></tr></thead>
+        <tbody id="keys-body"><tr><td colspan="7" class="small muted">加载中…</td></tr></tbody>
+      </table>
+    </div>
+    <p class="small muted" style="margin:9px 0 0">1 token = 1000 字。内部账号不限次数、不限额度。改动即时写入 keys.json。</p>
+  </div>
+</div>
+
+<div class="gate" id="gate">
+  <h2>需要内部账号</h2>
+  <p>后台只对内部测试账号开放。把你的 Key 填进来，或者用带 <code>?key=</code> 的地址打开。</p>
+  <div class="row">
+    <input id="gate-key" placeholder="xw_int_… 或 xw_live_…" style="flex:1;padding:8px 10px;border:1px solid #dfe6f1;border-radius:8px;font-size:13px">
+    <button class="primary" id="gate-go">进入</button>
+  </div>
+  <p class="small muted" id="gate-msg" style="margin-top:10px"></p>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  // 身份走 HttpOnly Cookie，不在 URL 里留 Key。
+  // 老链接 ?key= 会被前端换成 Cookie 并从地址栏抹掉。
+  var KEY = '';
+  (function () {
+    var m = String(location.search || '').match(/[?&]key=([^&]+)/);
+    if (!m) return;
+    var k = decodeURIComponent(m[1]);
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', 'api/v1/auth', false);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.send(JSON.stringify({ key: k }));
+    } catch (e) { /* 忽略 */ }
+    try {
+      var q = location.search.replace(/([?&])key=[^&]*&?/, '$1').replace(/[?&]$/, '');
+      history.replaceState(null, '', location.pathname + q + location.hash);
+    } catch (e) { /* 忽略 */ }
+  })();
+
+  function hdr() { return KEY ? { 'X-API-Key': KEY } : {}; }
+  function $(id) { return document.getElementById(id); }
+  /* ---- IP 归属地：从后台离线库批量取，浏览器缓存 7 天 ---- */
+  var GEO_KEY = 'aitell_ip_geo_v1';
+  var GEO_TTL = 7 * 24 * 3600 * 1000;
+
+  function geoCacheRead() {
+    try {
+      var o = JSON.parse(localStorage.getItem(GEO_KEY) || '{}');
+      return (o && typeof o === 'object') ? o : {};
+    } catch (e) { return {}; }
+  }
+  function geoCacheWrite(o) {
+    try { localStorage.setItem(GEO_KEY, JSON.stringify(o)); } catch (e) {}
+  }
+
+  function fillGeo() {
+    var cells = Array.prototype.slice.call(document.querySelectorAll('.geo[data-ip]'));
+    if (!cells.length) return;
+    var cache = geoCacheRead();
+    var now = Date.now();
+    var need = {};
+
+    cells.forEach(function (c) {
+      var ip = c.getAttribute('data-ip');
+      var hit = ip ? cache[ip] : null;
+      if (hit && (now - hit.at) < GEO_TTL) {
+        c.innerHTML = hit.v ? esc(hit.v) : '<span class="geo-none">本地/未知</span>';
+      } else if (ip) {
+        need[ip] = 1;
+        c.innerHTML = '<span class="geo-t">…</span>';
+      } else {
+        c.innerHTML = '<span class="geo-none">—</span>';
+      }
+    });
+
+    var ips = Object.keys(need);
+    if (!ips.length) return;
+
+    api('api/v1/admin/ip-region?ips=' + encodeURIComponent(ips.join(','))).then(function (j) {
+      if (!j || !j.map) return;
+      var c2 = geoCacheRead();
+      Object.keys(j.map).forEach(function (ip) { c2[ip] = { v: j.map[ip] || '', at: Date.now() }; });
+      geoCacheWrite(c2);
+      cells.forEach(function (c) {
+        var ip = c.getAttribute('data-ip');
+        if (!ip || !(ip in j.map)) return;
+        var v = j.map[ip];
+        c.innerHTML = v ? esc(v) : '<span class="geo-none">本地/未知</span>';
+      });
+    }).catch(function () {
+      cells.forEach(function (c) {
+        if (c.querySelector('.geo-t')) c.innerHTML = '<span class="geo-none">—</span>';
+      });
+    });
+  }
+
+  function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) { return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' })[c]; }); }
+
+  var logsCache = [];
+
+  function api(path, opt) {
+    opt = opt || {};
+    opt.headers = Object.assign({}, hdr(), opt.headers || {});
+    opt.credentials = 'same-origin';
+    return fetch(path, opt).then(function (r) { return r.json(); });
+  }
+
+  function fail(msg) {
+    $('gate-msg').textContent = msg || '';
+  }
+
+  $('gate-go').addEventListener('click', function () {
+    var v = ($('gate-key').value || '').trim();
+    if (!v) { fail('请填入 Key'); return; }
+    fail('验证中…');
+    fetch('api/v1/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({ key: v })
+    }).then(function (r) { return r.json(); }).then(function (j) {
+      if (!j || !j.ok) { fail((j && j.error && j.error.message) || 'Key 无效'); return; }
+      if (!j.internal) { fail('这个 Key 不是内部账号'); return; }
+      $('gate-key').value = '';
+      boot();
+    }).catch(function () { fail('连接失败'); });
+  });
+
+  function boot() {
+    api('api/v1/me').then(function (j) {
+      if (!j || !j.internal) {
+        $('app').hidden = true; $('gate').hidden = false;
+        fail('当前不是内部身份，请填入内部 Key');
+        return;
+      }
+      $('gate').hidden = true; $('app').hidden = false;
+      $('who').textContent = '· ' + (j.name || 'internal');
+      loadOverview();
+      loadHealth();
+      loadLogs();
+      loadKeys();
+    }).catch(function () { fail('连接失败，服务端没起来？'); });
+  }
+
+  function loadHealth() {
+    api('api/v1/admin/health').then(function (j) {
+      var sec = $('health-sec'), body = $('health-body');
+      if (!j || !j.ok) { sec.style.display = 'none'; return; }
+      if (!j.checked) {
+        sec.style.display = '';
+        body.innerHTML = '<p class="small muted">' + esc(j.note || '健康检查尚未运行') + '</p>';
+        return;
+      }
+      var s = j.status || {};
+      sec.style.display = '';
+      var probs = s.problems || [];
+      var items = [
+        ['应用', s.app ? '正常' : '<b style="color:#b91c1c">无响应</b>'],
+        ['nginx', s.nginx ? '正常' : '<b style="color:#b91c1c">未运行</b>'],
+        ['磁盘', (s.diskPct || 0) + '%' + ((s.diskPct || 0) >= 85 ? ' <b style="color:#b91c1c">偏高</b>' : '')],
+        ['证书', (s.certDays >= 0 ? s.certDays + ' 天后到期' : '读不到') + ((s.certDays >= 0 && s.certDays < 14) ? ' <b style="color:#b91c1c">即将到期</b>' : '')],
+        ['备份', (s.backupHours >= 0 ? s.backupHours + ' 小时前' : '没有备份') + ((s.backupHours >= 48) ? ' <b style="color:#b91c1c">过旧</b>' : '')]
+      ];
+      var head = probs.length
+        ? '<div style="padding:9px 12px;border-radius:8px;background:#fef2f2;border:1px solid #fecaca;color:#b91c1c;font-size:13px;margin-bottom:10px"><b>发现 ' + probs.length + ' 个问题</b><ul style="margin:6px 0 0 18px;padding:0">' +
+          probs.map(function (p) { return '<li>' + esc(p) + '</li>'; }).join('') + '</ul></div>'
+        : '<div style="padding:9px 12px;border-radius:8px;background:#f0fdf4;border:1px solid #bbf7d0;color:#15803d;font-size:13px;margin-bottom:10px">一切正常</div>';
+      var stale = j.stale ? '<p class="small" style="color:#b45309;margin:0 0 8px">状态文件超过 15 分钟未更新，检查脚本可能停摆了</p>' : '';
+      body.innerHTML = head + stale +
+        '<p class="small muted" style="margin:0">' + items.map(function (it) { return it[0] + ' ' + it[1]; }).join('　·　') +
+        '<br>检查时间：' + esc(s.ts || '—') + '</p>';
+    });
+  }
+
+  function loadOverview() {
+    api('api/v1/admin/overview').then(function (o) {
+      if (!o.ok) return;
+      var acc = o.accuracy ? (o.accuracy.at50 + '%') : '—';
+      $('cards').innerHTML = [
+        ['检测总数', o.detect.total, '独立 IP ' + o.detect.uniqueIps + ' 个'],
+        ['今日检测', o.detect.today, '今日 IP ' + o.detect.todayIps + ' 个'],
+        ['训练样本', o.samples.total, 'AI ' + o.samples.ai + ' / 人 ' + o.samples.human],
+        ['人工复核', o.corrections, '推翻机器的次数'],
+        ['模型准确率', acc, o.model ? (o.model.features + ' 项特征 · CV ' + Math.round(o.model.metrics.cvAccuracy * 1000) / 10 + '%') : '未训练'],
+        ['客户 Key', o.keys.total, '内部 ' + o.keys.internal + ' / 公测 ' + o.keys.public]
+      ].map(function (c) {
+        return '<div class="card"><b>' + esc(c[1]) + '</b><span>' + esc(c[0]) + '</span><em>' + esc(c[2]) + '</em></div>';
+      }).join('');
+
+      var days = o.detect.byDay || [];
+      var max = Math.max.apply(null, days.map(function (d) { return d.count; }).concat([1]));
+      $('bars').innerHTML = days.map(function (d) {
+        var h = Math.max(3, Math.round(d.count / max * 96));
+        return '<div style="height:' + h + 'px"><i>' + d.count + '</i></div>';
+      }).join('') || '<span class="small muted">还没有数据</span>';
+      $('barsx').innerHTML = days.map(function (d) { return '<div>' + d.day.slice(5) + '</div>'; }).join('');
+    });
+  }
+
+  function loadLogs() {
+    var ip = ($('f-ip').value || '').trim();
+    api('api/v1/logs?limit=300' + (ip ? '&ip=' + encodeURIComponent(ip) : '')).then(function (j) {
+      if (!j || !j.ok) return;
+      logsCache = j.rows || [];
+      $('logs-sum').textContent = '共 ' + j.total + ' 条，独立 IP ' + j.uniqueIps + ' 个';
+      $('logs-body').innerHTML = logsCache.length ? logsCache.map(function (r) {
+        var t = String(r.ts || '');
+        return '<tr><td class="small mono">' + esc(t.slice(5, 10) + ' ' + t.slice(11, 19)) + '</td>' +
+          '<td class="small mono">' + esc(r.ip) + '</td>' +
+          '<td class="small geo" data-ip="' + esc(r.ip || '') + '"><span class="geo-t">…</span></td>' +
+          '<td class="small">' + esc(r.role === 'internal' ? '内部' : (r.role === 'web' ? '网页' : 'Key')) + '</td>' +
+          '<td class="small">' + (r.chars || 0) + '</td>' +
+          '<td class="small" style="font-weight:600">' + (r.score === null ? '—' : r.score) + '</td>' +
+          '<td class="small" style="max-width:520px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' +
+            esc(r.text || '') + '">' + esc(String(r.text || '').replace(/\s+/g, ' ').slice(0, 70)) + '</td></tr>';
+      }).join('') : '<tr><td colspan="7" class="small muted">没有记录</td></tr>';
+      fillGeo();
+    });
+  }
+
+  function loadKeys() {
+    api('api/v1/admin/keys').then(function (j) {
+      if (!j || !j.ok) return;
+      $('keys-body').innerHTML = j.keys.map(function (k) {
+        return '<tr><td class="mono">' + esc(k.key) + '</td>' +
+          '<td>' + esc(k.name) + '</td>' +
+          '<td><span class="tag-role ' + (k.role === 'internal' ? 'int' : '') + '">' +
+            (k.role === 'internal' ? '内部' : '公测') + '</span></td>' +
+          '<td>' + (k.tokenQuota ? k.tokenQuota + ' token' : '不限') + '</td>' +
+          '<td>' + (k.tokensUsed || 0) + '</td>' +
+          '<td>' + (k.total || 0) + '</td>' +
+          '<td>' + (k.enabled ? '正常' : '<span class="tag-off">已停用</span>') + '</td></tr>';
+      }).join('');
+    });
+  }
+
+  $('btn-refresh').addEventListener('click', function () { loadOverview(); loadHealth(); loadLogs(); loadKeys(); });
+  $('f-ip').addEventListener('keydown', function (e) { if (e.key === 'Enter') loadLogs(); });
+
+  $('btn-csv').addEventListener('click', function () {
+    if (!logsCache.length) return;
+    function q(v) { return '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"'; }
+    var rows = [['时间', 'IP', '身份', '字数', '分数', '判定', '体裁', '内容', 'UA'].map(q).join(',')];
+    logsCache.forEach(function (r) {
+      rows.push([r.ts, r.ip, r.role, r.chars, r.score, r.verdict, r.textType, r.text, r.ua].map(q).join(','));
+    });
+    var blob = new Blob(['\ufeff' + rows.join('\r\n')], { type: 'text/csv;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'aitell-testlogs-' + Date.now() + '.csv';
+    a.click();
+  });
+
+  $('btn-addkey').addEventListener('click', function () {
+    var name = ($('k-name').value || '').trim();
+    if (name.length < 2) { $('key-msg').textContent = '名字至少 2 个字'; return; }
+    var body = { name: name, role: $('k-role').value, tokenQuota: ($('k-quota').value || '').trim() };
+    api('api/v1/admin/keys', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    }).then(function (j) {
+      $('key-msg').textContent = j.ok ? ('已' + (j.created ? '新增' : '覆盖') + '：' + j.name) : ('失败：' + ((j.error && j.error.message) || ''));
+      if (j.ok) { $('k-name').value = ''; $('k-quota').value = ''; loadKeys(); loadOverview(); }
+    });
+  });
+
+  boot();
+})();
+</script>
+</body>
+</html>

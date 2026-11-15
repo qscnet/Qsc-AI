@@ -1,0 +1,8 @@
+{"id":"c_mvqda0bmv680","ts":"2026-10-27T07:31:25.090Z","label":"human","hash":"9a72e5a90346b882","score":11,"chars":1075,"marked":[7],"reason":"","reasonTags":[],"by":"default","source":"ui-correct"}
+{"id":"c_mvqdciu71s35","ts":"2026-10-27T07:33:22.399Z","label":"human","hash":"0ecb04a63bd6a30c","score":11,"chars":1075,"marked":[34,7,31,22,28],"reason":"老派网文写法","reasonTags":["风格特殊","半文半白"],"by":"default","source":"ui"}
+{"id":"c_mvqdf66birs4","ts":"2026-10-27T07:35:25.955Z","label":"human","hash":"9a72e5a90346b882","score":11,"chars":1075,"marked":[7],"reason":"","reasonTags":[],"by":"default","source":"ui-correct"}
+{"id":"c_mvqdifhev42e","ts":"2026-10-27T07:37:57.986Z","label":"human","hash":"9a72e5a90346b882","score":1,"chars":1075,"marked":[7],"reason":"","reasonTags":["风格特殊"],"by":"default","source":"ui-correct"}
+{"id":"c_mvqdionc2w20","ts":"2026-10-27T07:38:09.864Z","label":"human","hash":"9a72e5a90346b882","score":1,"chars":1075,"marked":[7],"reason":"","reasonTags":[],"by":"default","source":"ui-correct"}
+{"id":"c_mvqdmew2swun","ts":"2026-10-27T07:41:03.842Z","label":"human","hash":"9a72e5a90346b882","rhash":"d62ac32b3915dbdd","score":1,"chars":1075,"marked":[7],"reason":"","reasonTags":[],"by":"default","source":"ui-correct"}
+{"id":"c_mvqdsxbmfo2a","ts":"2026-10-27T07:46:07.666Z","label":"human","hash":"ed97e23878d44f04","rhash":"52842cb50e913731","score":1,"chars":2720,"marked":[8],"reason":"","reasonTags":[],"by":"default","source":"ui-correct"}
+{"id":"c_mvqduxr0taws","ts":"2026-10-27T07:47:41.533Z","label":"human","hash":"0144cca7c2a959f3","rhash":"f1941f6a486c5a8d","score":0,"chars":1675,"marked":[43],"reason":"万能转折","reasonTags":[],"by":"default","source":"ui-correct"}

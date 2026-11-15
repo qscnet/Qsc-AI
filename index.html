@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI 味体检 · 中文小说 AI 痕迹辅助判断</title>
+<meta name="description" content="中文小说的 AI 味体检：46 项可解释特征、段落级定位、通顺度诊断、改写建议、整本拆章、开放 API。辅助判断，不构成来源认定。">
+<link rel="stylesheet" href="assets/styles.css?v=20261028g">
+</head>
+<body>
+
+<header class="topbar">
+  <div class="topbar-inner">
+    <div class="brand">
+      <div class="logo">体</div>
+      <div>
+        <h1>AI 味体检</h1>
+        <p>中文小说 AI 痕迹辅助判断 <b id="ver">v1.0.0</b><span class="badge-live" id="role-badge">公测</span></p>
+      </div>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="detect" class="active">检测</button>
+      <button data-tab="chapters">整本拆章</button>
+      <button data-tab="batch">批量</button>
+      <button data-tab="compare">对照</button>
+      <button data-tab="api">API</button>
+      <button data-tab="train" data-internal="1">训练</button>
+      <button data-tab="about">说明</button>
+    </nav>
+  </div>
+</header>
+
+<main>
+
+  <!-- ================= 检测 ================= -->
+  <section class="view active" id="view-detect">
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>待检文本</h2>
+          <div class="actions">
+            <button class="ghost" id="btn-sample">示例 · AI 生成</button>
+            <button class="ghost" id="btn-sample-human">示例 · 人工编写</button>
+            <button class="ghost" id="btn-upload">上传 txt</button>
+            <button class="ghost" id="btn-clear">清空</button>
+            <input type="file" id="file-input" accept=".txt,.md,text/plain" class="hidden">
+          </div>
+        </div>
+        <div id="input-wrap">
+          <textarea id="input" placeholder="把小说段落粘进来，建议一次 1000 字以上。
+整本小说请用上方「整本拆章」，能自动识别「第X章」并逐章打分。"></textarea>
+          <div id="annot-view" class="annot hidden"></div>
+        </div>
+        <div class="input-foot">
+          <span class="count" id="counter">0 字</span>
+          <div class="seg hidden" id="mode-switch">
+            <button data-mode="edit" class="active">编辑</button>
+            <button data-mode="mark">标注结果</button>
+          </div>
+          <span class="hint">Ctrl + Enter 直接检测</span>
+          <label id="judge-wrap" title="需要 node server.js 并配置 JUDGE_API_KEY"
+            style="display:inline-flex;align-items:center;gap:6px;font-size:12.5px;padding:4px 10px;border:1px solid var(--line);border-radius:8px;background:#fbfcff;color:#667085;cursor:not-allowed">
+            <input type="checkbox" id="judge-toggle" disabled style="margin:0">
+            大模型裁判<span class="muted" style="font-size:11px">（可选）</span>
+          </label>
+          <button class="primary" id="btn-detect">立即检测</button>
+        </div>
+        <p class="beta-note">
+          <b>内测版</b>　检测不保存正文，只在点 👍/👎 时记录统计特征用于改进模型。
+          结果为「AI 味体检」，仅供辅助判断，不构成对作品来源的认定。
+        </p>
+      </div>
+
+      <div class="panel" id="result">
+        <div class="empty" id="empty-state">
+          <div class="big">◎</div>
+          <p>粘一段小说进来，右侧给出 AI 味指数、维度拆解和改写建议。</p>
+          <p class="mt8 small">检测完，左边原文会按段落染色：<b style="color:#16a34a">绿＝人写</b>　<b style="color:#b45309">黄＝疑似 AI</b>　<b style="color:#dc2626">红＝高度怀疑 AI</b>。</p>
+          <p class="mt8 small">结论是<b>疑似度 + 证据链</b>，不是司法意义上的判定。</p>
+        </div>
+        <div id="result-body" class="hidden"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 整本拆章 ================= -->
+  <section class="view" id="view-chapters">
+    <div class="grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h2>整本 / 多章</h2>
+          <div class="actions">
+            <button class="ghost" id="btn-ch-upload">上传 txt</button>
+            <button class="ghost" id="btn-ch-sample">示例</button>
+            <input type="file" id="ch-file" accept=".txt,.md,text/plain" class="hidden">
+          </div>
+        </div>
+        <textarea id="ch-input" class="ta-sm" placeholder="粘贴整本小说。会自动识别「第一章 / 第1章 / 第三回」这类标题并逐章分析；
+若找不到章节标题，则按每 3000 字切一段。"></textarea>
+        <div class="input-foot">
+          <span class="count" id="ch-counter">0 字</span>
+          <span class="hint">用于找出「哪几章是 AI 写的」</span>
+          <button class="primary" id="btn-ch-run">开始拆章</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-head"><h2>章节曲线</h2><span class="small muted" id="ch-summary"></span></div>
+        <div class="panel-body" id="ch-result">
+          <div class="empty"><div class="big">▤</div><p>上传整本后，这里会画出一条按章排列的 AI 味曲线。</p></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 批量 ================= -->
+  <section class="view" id="view-batch">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>批量检测</h2>
+        <div class="actions">
+          <button class="ghost" id="btn-batch-files">上传多个 txt</button>
+          <button class="ghost" id="btn-batch-clear">清空</button>
+          <button class="ghost" id="btn-batch-csv">导出 CSV</button>
+          <input type="file" id="batch-files" accept=".txt,.md,text/plain" multiple class="hidden">
+        </div>
+      </div>
+      <div class="panel-body">
+        <p class="small muted">每段之间用一行 <code class="mono">=====</code> 分隔；也可以直接拖入多个 txt 文件。适合工作室批量过稿。</p>
+        <textarea id="batch-input" class="ta-sm mt8" placeholder="第一段文本……
+=====
+第二段文本……
+=====
+第三段文本……"></textarea>
+        <div class="row mt16">
+          <button class="primary" id="btn-batch-run">批量检测</button>
+          <span class="small muted" id="batch-status"></span>
+        </div>
+        <div id="batch-result" class="mt16"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 对照 ================= -->
+  <section class="view" id="view-compare">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>双文本对照</h2>
+        <span class="small muted">拿作者自己写的当基线，比空口判断更有说服力</span>
+      </div>
+      <div class="panel-body">
+        <div class="grid even" style="gap:14px">
+          <div>
+            <h4 class="small muted" style="margin-bottom:6px">A · 基线（已知是真人写的）</h4>
+            <textarea id="cmp-a" class="ta-sm" placeholder="粘一段作者确认自己写的段落"></textarea>
+          </div>
+          <div>
+            <h4 class="small muted" style="margin-bottom:6px">B · 待测（怀疑有 AI 参与）</h4>
+            <textarea id="cmp-b" class="ta-sm" placeholder="粘一段要查的段落"></textarea>
+          </div>
+        </div>
+        <div class="row mt16">
+          <button class="primary" id="btn-cmp-run">开始对照</button>
+          <span class="small muted" id="cmp-status"></span>
+        </div>
+        <div id="cmp-result" class="mt16"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= API ================= -->
+  <section class="view" id="view-api">
+    <div class="grid even">
+      <div class="panel">
+        <div class="panel-head"><h2>接口文档</h2><span class="small muted">REST / JSON，零依赖 Node 服务</span></div>
+        <div class="panel-body doc">
+          <p>启动服务后用 <code>X-API-Key</code> 或 <code>Authorization: Bearer</code> 调用。所有端点都支持 CORS。</p>
+
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/detect</span><span class="d">单段检测，返回完整报告</span></div>
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/batch</span><span class="d">批量检测（最多 50 段）</span></div>
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/chapters</span><span class="d">整本拆章，逐章打分</span></div>
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/compare</span><span class="d">双文本对照</span></div>
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/judge</span><span class="d">大模型裁判（可选，需配置 Key）</span></div>
+          <div class="endpoint"><span class="method">POST</span><span class="path">/api/v1/feedback</span><span class="d">打标（ai / human / unsure），喂给校准脚本</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/health</span><span class="d">健康检查</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/quota</span><span class="d">当前配额余量</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/stats</span><span class="d">样本数、准确率、AUC</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/calibration</span><span class="d">当前校准参数</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/features</span><span class="d">特征字典（可解释性凭证）</span></div>
+          <div class="endpoint"><span class="method">GET</span><span class="path">/api/v1/usage</span><span class="d">当前 Key 的配额用量</span></div>
+
+          <h3>请求示例</h3>
+<pre><span class="c"># curl</span>
+curl -X POST http://127.0.0.1:8787/api/v1/detect \
+  -H "Content-Type: application/json" \
+  -H "X-API-Key: 你的Key" \
+  -d '{"text":"夜色如水，月光透过窗棂……"}'</pre>
+
+          <h3>返回结构</h3>
+<pre>{
+  <span class="k">"ok"</span>: true,
+  <span class="k">"score"</span>: 78,              <span class="c">// AI 味指数 0-100</span>
+  <span class="k">"verdict"</span>: { "key": "high", "label": "高度怀疑 AI" },   <span class="c">// 三档结论</span>
+  <span class="k">"confidence"</span>: { "level": "较高", "margin": 6, ... },
+  <span class="k">"suspiciousParagraphs"</span>: [
+    { "index": 2, "score": 84, "text": "夜色如水……", "hits": [...] }
+  ],
+  <span class="k">"dimensions"</span>: [ { "key": "rhythm", "score": 82, ... } ],
+  <span class="k">"findings"</span>:   [ { "title": "...", "evidence": ["..."], "fix": "..." } ]
+}</pre>
+
+          <h3>错误码</h3>
+          <ul>
+            <li><code>401</code> 缺少或无效 API Key</li>
+            <li><code>413</code> 文本超长（默认单次 2 MB / 20 万字）</li>
+            <li><code>422</code> 文本过短或中文占比过低</li>
+            <li><code>429</code> 超出每分钟速率或每日配额</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>领取 API Key</h2><span class="small muted">1 token = 1000 字 · 内测免费 200 token</span></div>
+        <div class="panel-body">
+          <p class="small muted" style="margin:0 0 8px">
+            填个名字就能领。**同名再次领取 = 换一把新的，旧 Key 立即作废**（忘了 Key 就用这个办法重置）。
+            Key 只显示一次，请立刻保存。
+          </p>
+          <div class="input-row">
+            <input id="reg-name" placeholder="你的名字或团队名（2–40 字）" maxlength="40">
+            <input id="reg-invite" placeholder="邀请码（若已开启）" style="max-width:180px">
+            <button class="primary" id="btn-register">领取 Key</button>
+          </div>
+          <pre id="reg-out" class="code" hidden style="margin-top:10px"></pre>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>在线试用</h2><span class="small muted" id="api-mode">检查运行环境…</span></div>
+        <div class="panel-body">
+          <p class="small muted" id="api-note"></p>
+          <div class="input-row">
+            <input id="api-key" placeholder="X-API-Key">
+            <select id="api-ep" class="ghost" style="border:1px solid var(--line);border-radius:8px;padding:7px 10px;font-size:13px;background:#fff">
+              <option value="detect">/detect</option>
+              <option value="chapters">/chapters</option>
+            </select>
+          </div>
+          <textarea id="api-text" class="ta-sm" placeholder="请求体里的 text">她缓缓地抬起头，眼底闪过一丝复杂的情绪。仿佛整个世界都在这一刻安静了下来。</textarea>
+          <div class="row mt8">
+            <button class="primary" id="btn-api-call">发送请求</button>
+            <span class="small muted" id="api-status"></span>
+          </div>
+          <pre class="out mt16" id="api-out">// 响应会显示在这里</pre>
+
+          <h4 class="mt24">部署命令</h4>
+<pre><span class="c"># 1. 启动（首次会生成 keys.json 并打印一把新 Key）</span>
+node server.js
+
+<span class="c"># 2. 自定义端口 / 超时</span>
+PORT=9000 node server.js
+
+<span class="c"># 3. 自检引擎</span>
+node server.js --selftest</pre>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 训练 ================= -->
+  <section class="view" id="view-train">
+    <div class="panel">
+      <div class="panel-head">
+        <h2>训练：用你的标注让判定越来越准</h2>
+        <div class="actions"><button class="ghost" id="btn-stats-refresh">刷新</button></div>
+      </div>
+      <div class="panel-body">
+        <p class="small muted">
+          每次检测完点一下「这是 AI 写的 / 这是人写的」，样本就会存进 <code class="mono">samples.jsonl</code>。
+          攒够之后跑 <code class="mono">node calibrate.js</code>，它会重新学习 46 项特征的「人类均值 / AI 均值 / 区分度权重」，
+          写进 <code class="mono">calibration.json</code>，服务端自动热加载。
+          <b>它不会记住具体文本，只调整每个特征该有多敏感</b>——所以判定依然可解释，也依然能给出证据。
+        </p>
+
+        <div class="about-grid mt16" id="train-cards">
+          <div class="card-soft"><h4>样本总数</h4><p id="t-total">—</p></div>
+          <div class="card-soft"><h4>AI 标注 / 人类标注</h4><p id="t-split">—</p></div>
+          <div class="card-soft"><h4>当前准确率（阈值 50）</h4><p id="t-acc">—</p></div>
+          <div class="card-soft"><h4>AUC</h4><p id="t-auc">—</p></div>
+        </div>
+
+        <div id="train-hint" class="notice mt16" style="border-color:#e4e7ec;background:#f8f9fc;color:#475467">
+          正在读取训练状态…
+        </div>
+
+        <div class="block-title">后台管理<span class="sub">检测记录 · 客户 Key · 模型状态</span></div>
+        <p class="small muted" style="margin:0 0 8px">独立页面，功能更全（趋势图、Key 增删、CSV 导出）。</p>
+        <a class="ghost" href="admin.html" target="_blank" style="display:inline-block;padding:6px 13px;border:1px solid var(--line);border-radius:8px;text-decoration:none;color:#4a6cf7;font-size:13px;font-weight:600">打开后台 ↗</a>
+
+        <div class="block-title">测试记录<span class="sub">谁、什么时候、测了什么、判成什么</span></div>
+        <div class="row" style="gap:8px;flex-wrap:wrap;align-items:center">
+          <button class="ghost" id="btn-logs-refresh">刷新记录</button>
+          <button class="ghost" id="btn-logs-csv">导出 CSV</button>
+          <span class="small muted" id="logs-summary">—</span>
+        </div>
+        <p class="small muted" style="margin:8px 0 0">
+          默认只保存正文前 500 字（够定位问题，不是整篇存档）。要存全文：启动前设
+          <code class="mono">LOG_TEXT_MAX=0</code>。记录文件在项目目录的 <code class="mono">testlogs.jsonl</code>。
+        </p>
+        <div class="tbl-scroll mt8" style="max-height:340px;overflow:auto">
+          <table class="tbl" id="logs-table">
+            <thead><tr><th style="width:76px">时间</th><th style="width:120px">IP</th><th style="width:70px">身份</th>
+              <th style="width:56px">字数</th><th style="width:56px">分数</th><th>内容</th></tr></thead>
+            <tbody id="logs-body"><tr><td colspan="6" class="small muted">点「刷新记录」加载</td></tr></tbody>
+          </table>
+        </div>
+
+        <div class="block-title">怎么做</div>
+        <ol class="small" style="line-height:2;padding-left:20px;margin:0;color:#344454">
+          <li>在「检测」页贴文本、检测，然后点底部的三个反馈按钮之一。每类至少标 <b>8 条</b>，30 条以上效果才明显。</li>
+          <li>标完之后，在项目目录执行 <code class="mono">node calibrate.js</code>。</li>
+          <li>看它打印的「留出集准确率 校准前 → 校准后」，确认变好再保留；要回滚就删掉 <code class="mono">calibration.json</code>。</li>
+          <li>服务端每 15 秒检查一次校准文件，改了自动生效，不用重启。</li>
+        </ol>
+
+        <div class="block-title">命令行</div>
+<pre class="out">node calibrate.js            <span class="c"># 训练 + 评估 + 写入 calibration.json</span>
+node calibrate.js --dry      <span class="c"># 只看结果，不写文件</span>
+node calibrate.js --min 20   <span class="c"># 每类至少 20 条才训练</span>
+node calibrate.js --cv 5     <span class="c"># 5 折交叉验证，对外宣传用这个数字</span></pre>
+
+        <div class="block-title">也可以从 API 打标</div>
+<pre class="out">curl -X POST http://127.0.0.1:8787/api/v1/feedback \
+  -H "Content-Type: application/json" -H "X-API-Key: $KEY" \
+  -d '{"label":"ai","text":"夜色如水，月光透过窗棂……"}'</pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 说明 ================= -->
+  <section class="view" id="view-about">
+    <div class="panel">
+      <div class="panel-head"><h2>这个工具是怎么判的</h2><span class="small muted">方法、边界与免责</span></div>
+      <div class="panel-body">
+        <div class="notice">
+          <b>先说边界。</b>本工具是<b>统计学启发式检测</b>，不是模型分类器，更不是「AI 生成鉴定书」。它衡量的是「这段文字有多符合中文大模型常见的书写习惯」。
+          真人写得规整、或 AI 被逐句人工改写过，都可能误判；反过来，老练的提示词也可能骗过它。<b>对外使用时请只声称「疑似度 + 证据」，不要声称「判定」。</b>
+        </div>
+
+        <div class="block-title">原理<span class="sub">55 项可解释特征 → 10 个维度 → 加权 → 段落级定位</span></div>
+        <p class="small muted">
+          每个特征都给出「实测值 / 人类参考值 / AI 参考值」，用线性映射把实测值换算成 0–1 的偏离度，再按维度加权得出 AI 味指数。
+          没有任何一环是黑箱：你可以在报告里看到是哪一条特征、偏离了多少、命中了哪些原文。
+          对外呈现的是<b>段落级判定</b>（和朱雀一致，按段给结论 + 原文 + 依据），逐句热力图收在细节里，给编辑细看用。
+          权重和参考值都写在 <code class="mono">assets/engine.js</code> 顶部的特征表里，可以直接改。
+        </p>
+
+        <div class="about-grid mt16">
+          <div class="card-soft">
+            <h4>① 句式节奏</h4>
+            <p>句长变异系数、短句率、节拍器连击、单句成段率。人类句子忽长忽短，模型偏爱 15–35 字的匀速输出。</p>
+          </div>
+          <div class="card-soft">
+            <h4>② 用词习惯</h4>
+            <p>叠词副词（轻轻/缓缓/淡淡）、四字成语、抽象大词、具体物、数字量词。模型写概念，人写东西。</p>
+          </div>
+          <div class="card-soft">
+            <h4>③ 套路句式</h4>
+            <p>「不是…而是…」、排比、仿佛…一般、眼底闪过、嘴角勾起一抹、深吸一口气。这是最容易命中的指纹。</p>
+          </div>
+          <div class="card-soft">
+            <h4>④ 语病杂糅</h4>
+            <p>「大约…左右」「目的是为了」这类语义重复，「原因是…造成的」这类句式杂糅，「通过…，让…」的主语残缺，「说的好」的的/得误用，以及一逗到底。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑤ 逻辑松散</h4>
+            <p>前言不搭后语：相邻两句内容词完全不重叠又没有转场词；车轱辘话：把上一句换个说法再说一遍；以及「从未…又一次」这类前后矛盾。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑥ 标点口语</h4>
+            <p>标点种类数、破折号、感叹问号、语气词、网络用语、手写毛边。人打字会有毛边，模型太干净。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑦ 重复自噬</h4>
+            <p>6 字串复用、句首雷同、相邻句相似度。模型会把自己刚写过的句子再说一遍。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑧ 意象感官</h4>
+            <p>视觉垄断度、对话占比、对话句长、具体动作。模型只会写「看」，很少写「闻」和「疼」。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑨ 空转密度</h4>
+            <p>似乎/仿佛/某种/下意识、空转句、升华式收尾。说了很多，什么也没说。</p>
+          </div>
+          <div class="card-soft">
+            <h4>⑩ 可预测性（实验）</h4>
+            <p>字符级条件熵，作为困惑度的廉价代理。越可预测，越像模型输出。权重刻意压低。</p>
+          </div>
+        </div>
+
+        <div class="block-title">判定区间<span class="sub">对外只给三档结论，和朱雀一致</span></div>
+        <table class="tbl">
+          <thead><tr><th>指数</th><th>结论</th><th>含义</th><th>处置建议</th></tr></thead>
+          <tbody>
+            <tr>
+              <td>0–39</td>
+              <td><span class="score-pill" style="background:#dcfce7;color:#15803d">人写</span></td>
+              <td>未检出成规模的机器书写特征</td>
+              <td class="small muted">直接通过</td>
+            </tr>
+            <tr>
+              <td>40–69</td>
+              <td><span class="score-pill" style="background:#fef3c7;color:#b45309">疑似 AI</span></td>
+              <td>命中部分模型书写特征，也可能是人机混写或 AI 初稿人工润色</td>
+              <td class="small muted">人工复核；占全文超 30% 再走下一步</td>
+            </tr>
+            <tr>
+              <td>70–100</td>
+              <td><span class="score-pill" style="background:#fee2e2;color:#b91c1c">高度怀疑 AI</span></td>
+              <td>多项模型书写特征同时命中，且分布集中在模型一侧</td>
+              <td class="small muted">要求作者说明创作过程或提供修改记录</td>
+            </tr>
+          </tbody>
+        </table>
+        <p class="small muted mt8">
+          0–100 的「AI 味指数」只作为内部量化的精细刻度，对外一律只讲这三档。
+          想看更细的层次，看右侧「维度拆解」和「可疑段落」里的分段分数。
+        </p>
+
+        <div class="block-title">已知的误判场景</div>
+        <ul class="small muted" style="line-height:2;padding-left:20px;margin:0">
+          <li><b>翻译腔 / 严肃文学</b>：用词规整、标点克制、少口语，容易被打高分。建议调低「标点口语」维度权重。</li>
+          <li><b>公文体 / 说明文</b>：本来就该句句等长，检测失去意义。</li>
+          <li><b>1500 字以下</b>：统计特征不稳，置信度会自动降级，请务必看置信区间。</li>
+          <li><b>诗歌 / 意识流</b>：句长和标点本身就是形式，指标会失效。</li>
+          <li><b>AI 生成后人工精修</b>：分数通常落在 40–59，这正是「无法定论」区间，符合实际情况。</li>
+        </ul>
+
+        <div class="block-title">自检</div>
+        <p class="small muted">点一下，用一段典型模型腔和一段真人网文跑一遍引擎，验证判定方向是否正常。</p>
+        <div class="row mt8">
+          <button class="ghost" id="btn-selftest">运行引擎自检</button>
+          <span class="small" id="selftest-out"></span>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="foot-line">
+    AI 味体检 · 内测版 &nbsp;|&nbsp; 引擎 v1.0.0 &nbsp;|&nbsp; 检测不保存正文 &nbsp;|&nbsp; 结果仅供辅助判断
+  </div>
+  <div class="foot-contact">
+    微信 <b class="wx">smart-360</b>
+    <span class="foot-tip">· 使用问题、批量检测、API 接入，加微信聊</span>
+  </div>
+</footer>
+
+<script src="assets/engine.js?v=20261028g"></script>
+<script src="assets/app.js?v=20261028g"></script>
+</body>
+</html>

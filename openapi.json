@@ -1,0 +1,404 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI 味体检 · 中文小说 AI 痕迹辅助判断 API",
+    "version": "1.0.0",
+    "summary": "中文小说的 AI 味体检：46 项可解释特征、段落级判定、通顺度诊断、整本拆章。检测不保存正文。",
+    "description": "输出为基于统计特征的疑似度估计，不构成对文本来源的鉴定结论。请勿用于处罚、诉讼或合同违约认定。",
+    "contact": { "name": "AI 味体检（内测）" },
+    "license": { "name": "Proprietary" }
+  },
+  "servers": [
+    { "url": "http://127.0.0.1:8787", "description": "本地服务" }
+  ],
+  "tags": [
+    { "name": "detect", "description": "文本检测" },
+    { "name": "meta", "description": "元信息与配额" }
+  ],
+  "security": [{ "ApiKeyHeader": [] }, { "BearerAuth": [] }],
+  "components": {
+    "securitySchemes": {
+      "ApiKeyHeader": {
+        "type": "apiKey",
+        "in": "header",
+        "name": "X-API-Key",
+        "description": "在 keys.json 中配置的 Key"
+      },
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "description": "Authorization: Bearer <key>"
+      }
+    },
+    "schemas": {
+      "Band": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "enum": ["human", "likely-human", "mixed", "ai-lean", "ai"] },
+          "label": { "type": "string", "example": "AI 痕迹较明显" },
+          "color": { "type": "string", "example": "#ea580c" },
+          "advice": { "type": "string" }
+        }
+      },
+      "Ratio": {
+        "type": "object",
+        "description": "某一档的文本占比",
+        "properties": {
+          "key": { "type": "string" },
+          "label": { "type": "string" },
+          "chars": { "type": "integer" },
+          "paragraphs": { "type": "integer" },
+          "ratio": { "type": "number", "minimum": 0, "maximum": 100 }
+        }
+      },
+      "Confidence": {
+        "type": "object",
+        "properties": {
+          "level": { "type": "string", "enum": ["极低", "低", "中", "较高", "高"] },
+          "margin": { "type": "integer", "description": "误差区间，±margin 分", "example": 6 },
+          "note": { "type": "string" }
+        }
+      },
+      "Dimension": {
+        "type": "object",
+        "properties": {
+          "key": { "type": "string", "example": "rhythm" },
+          "name": { "type": "string", "example": "句式节奏" },
+          "desc": { "type": "string" },
+          "weight": { "type": "number", "example": 1.15 },
+          "score": { "type": ["integer", "null"], "minimum": 0, "maximum": 100 },
+          "features": { "type": "array", "items": { "type": "string" } }
+        }
+      },
+      "Feature": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "lex_redup" },
+          "dim": { "type": "string", "example": "lexicon" },
+          "name": { "type": "string", "example": "叠词副词密度" },
+          "unit": { "type": "string", "enum": ["num", "pct", "per1000", "count"] },
+          "dir": { "type": "string", "enum": ["up", "down"] },
+          "w": { "type": "number" },
+          "value": { "type": "number" },
+          "norm": { "type": "number", "minimum": 0, "maximum": 1, "description": "偏离度，1 表示完全落在 AI 区间" },
+          "display": { "type": "string", "example": "8.40 /千字" },
+          "humanRange": { "type": "string", "example": "1.80 /千字" },
+          "aiRange": { "type": "string", "example": "6.00 /千字" },
+          "skipped": { "type": "boolean", "description": "样本不足时该特征不参与打分" }
+        }
+      },
+      "Finding": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string" },
+          "dim": { "type": "string" },
+          "dimName": { "type": "string" },
+          "severity": { "type": "string", "enum": ["high", "mid", "low"] },
+          "title": { "type": "string" },
+          "metric": { "type": "string" },
+          "humanRef": { "type": "string" },
+          "aiRef": { "type": "string" },
+          "deviation": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "desc": { "type": "string" },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "fix": { "type": "string" }
+        }
+      },
+      "Sentence": {
+        "type": "object",
+        "properties": {
+          "i": { "type": "integer" },
+          "t": { "type": "string" },
+          "len": { "type": "integer" },
+          "dlg": { "type": "boolean" },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "flags": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": { "id": { "type": "string" }, "name": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "Report": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean" },
+          "version": { "type": "string" },
+          "engine": { "type": "string" },
+          "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+          "verdict": {
+            "type": "object",
+            "description": "三档结论：人写 / 疑似 AI / 高度怀疑 AI",
+            "properties": {
+              "key": { "type": "string", "enum": ["human", "suspected", "high"] },
+              "label": { "type": "string", "example": "疑似 AI" },
+              "short": { "type": "string", "example": "疑似" },
+              "color": { "type": "string" },
+              "desc": { "type": "string" },
+              "advice": { "type": "string" }
+            }
+          },
+          "band": { "$ref": "#/components/schemas/Band" },
+          "confidence": { "$ref": "#/components/schemas/Confidence" },
+          "text": {
+            "type": "object",
+            "properties": {
+              "chars": { "type": "integer" },
+              "cjk": { "type": "integer" },
+              "analyzedCjk": { "type": "integer" },
+              "truncated": { "type": "boolean" },
+              "sentences": { "type": "integer" },
+              "paragraphs": { "type": "integer" },
+              "dialogueRatio": { "type": "string" },
+              "meanSentLen": { "type": "number" },
+              "sentCv": { "type": "number" }
+            }
+          },
+          "dimensions": { "type": "array", "items": { "$ref": "#/components/schemas/Dimension" } },
+          "features": { "type": "array", "items": { "$ref": "#/components/schemas/Feature" } },
+          "findings": { "type": "array", "items": { "$ref": "#/components/schemas/Finding" } },
+          "composition": {
+            "type": "object",
+            "description": "三档文本占比（按段落字数统计，三者相加为 100）",
+            "properties": {
+              "human": { "$ref": "#/components/schemas/Ratio" },
+              "suspected": { "$ref": "#/components/schemas/Ratio" },
+              "high": { "$ref": "#/components/schemas/Ratio" }
+            }
+          },
+          "suspiciousParagraphs": {
+            "type": "array",
+            "description": "段落级判定（对外主要输出）：每段分数、原文、命中依据",
+            "items": {
+              "type": "object",
+              "properties": {
+                "index": { "type": "integer", "description": "第几段，1 起" },
+                "score": { "type": "integer", "minimum": 0, "maximum": 100 },
+                "band": { "type": "string" },
+                "chars": { "type": "integer" },
+                "sentences": { "type": "integer" },
+                "text": { "type": "string" },
+                "flags": { "type": "array", "items": { "type": "object" } },
+                "hits": { "type": "array", "items": { "type": "object" } }
+              }
+            }
+          },
+          "paragraphs": { "type": "array", "items": { "type": "object" }, "description": "全部段落（含未越线的）" },
+          "sentences": { "type": "array", "items": { "$ref": "#/components/schemas/Sentence" } },
+          "blocks": { "type": "array", "items": { "type": "object" } },
+          "fixes": { "type": "array", "items": { "type": "object" } },
+          "summary": { "type": "string" },
+          "warnings": { "type": "array", "items": { "type": "string" } },
+          "elapsedMs": { "type": "number" }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "properties": {
+          "ok": { "type": "boolean", "const": false },
+          "error": {
+            "type": "object",
+            "properties": { "code": { "type": "string" }, "message": { "type": "string" } }
+          }
+        }
+      }
+    },
+    "responses": {
+      "Unauthorized": {
+        "description": "缺少或无效 API Key",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "Unprocessable": {
+        "description": "文本过短、中文占比过低或缺参数",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      },
+      "RateLimited": {
+        "description": "超出速率或每日配额",
+        "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Error" } } }
+      }
+    }
+  },
+  "paths": {
+    "/api/v1/detect": {
+      "post": {
+        "tags": ["detect"],
+        "summary": "单段检测",
+        "operationId": "detect",
+        "parameters": [
+          {
+            "name": "detail", "in": "query", "required": false,
+            "schema": { "type": "string", "enum": ["full", "lite"], "default": "full" },
+            "description": "lite 只返回关键字段，省流量"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": {
+                  "text": { "type": "string", "maxLength": 200000 },
+                  "judge": { "type": "boolean", "description": "同时请求大模型裁判" },
+                  "options": {
+                    "type": "object",
+                    "properties": {
+                      "maxChars": { "type": "integer" },
+                      "dimWeights": { "type": "object", "additionalProperties": { "type": "number" } },
+                      "featureWeights": { "type": "object", "additionalProperties": { "type": "number" } }
+                    }
+                  }
+                }
+              },
+              "example": { "text": "夜色如水，月光透过窗棂洒落在她的脸上。" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "检测报告",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Report" } } }
+          },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "422": { "$ref": "#/components/responses/Unprocessable" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/batch": {
+      "post": {
+        "tags": ["detect"],
+        "summary": "批量检测（最多 50 段）",
+        "operationId": "detectBatch",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["texts"],
+                "properties": {
+                  "texts": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "oneOf": [
+                        { "type": "string" },
+                        {
+                          "type": "object",
+                          "required": ["text"],
+                          "properties": { "name": { "type": "string" }, "text": { "type": "string" } }
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "逐条结果与平均分" },
+          "401": { "$ref": "#/components/responses/Unauthorized" },
+          "429": { "$ref": "#/components/responses/RateLimited" }
+        }
+      }
+    },
+    "/api/v1/chapters": {
+      "post": {
+        "tags": ["detect"],
+        "summary": "整本拆章逐章打分",
+        "operationId": "detectChapters",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["text"],
+                "properties": { "text": { "type": "string", "description": "整本小说，自动识别「第X章」" } }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "章节曲线数据" },
+          "422": { "$ref": "#/components/responses/Unprocessable" }
+        }
+      }
+    },
+    "/api/v1/compare": {
+      "post": {
+        "tags": ["detect"],
+        "summary": "双文本对照",
+        "operationId": "compare",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["a", "b"],
+                "properties": {
+                  "a": { "type": "string", "description": "基线文本" },
+                  "b": { "type": "string", "description": "待测文本" }
+                }
+              }
+            }
+          }
+        },
+        "responses": { "200": { "description": "两侧报告 + 逐维差值" } }
+      }
+    },
+    "/api/v1/judge": {
+      "post": {
+        "tags": ["detect"],
+        "summary": "大模型裁判（需服务端配置 JUDGE_API_KEY）",
+        "operationId": "judge",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "type": "object", "required": ["text"], "properties": { "text": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "模型意见与合成分数" },
+          "502": { "description": "大模型调用失败" },
+          "503": { "description": "未配置裁判 Key" }
+        }
+      }
+    },
+    "/api/v1/health": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "健康检查",
+        "operationId": "health",
+        "security": [],
+        "responses": { "200": { "description": "服务状态、引擎版本、裁判是否启用" } }
+      }
+    },
+    "/api/v1/features": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "特征字典",
+        "description": "返回全部 55 项特征的定义、方向、权重与参考值，用于审计可解释性。",
+        "operationId": "features",
+        "security": [],
+        "responses": { "200": { "description": "特征与维度定义" } }
+      }
+    },
+    "/api/v1/usage": {
+      "get": {
+        "tags": ["meta"],
+        "summary": "当前 Key 的配额用量",
+        "operationId": "usage",
+        "responses": { "200": { "description": "今日用量、配额、速率上限" } }
+      }
+    }
+  }
+}

@@ -1,0 +1,20 @@
+[
+  {
+    "key": "xw_live_replace_with_random_32_chars",
+    "name": "示例客户 · 某文学网",
+    "plan": "pro",
+    "rpm": 120,
+    "dailyQuota": 50000,
+    "enabled": true,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  },
+  {
+    "key": "xw_live_replace_with_another_random_key",
+    "name": "内测作者",
+    "plan": "free",
+    "rpm": 20,
+    "dailyQuota": 1000,
+    "enabled": true,
+    "createdAt": "2025-01-01T00:00:00.000Z"
+  }
+]
