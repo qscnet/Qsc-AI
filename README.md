@@ -1,6 +1,10 @@
 # AI 味体检 · 中文小说 AI 痕迹辅助判断
 
-**在线试用 → https://qscnet.github.io/Qsc-AI/**
+<p align="center">
+  <a href="https://qscnet.github.io/Qsc-AI/"><b>▶ 在线试用（点开就能用，不用装任何东西）</b></a>
+  <br>
+  <code>https://qscnet.github.io/Qsc-AI/</code>
+</p>
 
 > 纯前端。稿子在你自己的浏览器里跑，一个字都不上传。
 > 要开完整服务（REST API、Key 鉴权、限流、配额）：见下方「三、怎么跑」。

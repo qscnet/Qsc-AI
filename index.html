@@ -27,6 +27,11 @@
       <button data-tab="train" data-internal="1">训练</button>
       <button data-tab="about">说明</button>
     </nav>
+    <a class="trial-link"
+       href="https://qscnet.github.io/Qsc-AI/"
+       target="_blank" rel="noopener"
+       title="在线公开版，直接发给别人就能用"
+       style="margin-left:auto;display:inline-flex;align-items:center;gap:6px;padding:7px 14px;border-radius:8px;background:linear-gradient(135deg,#4a6cf7,#7a5cf7);color:#fff;font-size:13px;font-weight:600;text-decoration:none;white-space:nowrap;box-shadow:0 2px 8px rgba(74,108,247,.28)">在线版 ↗</a>
   </div>
 </header>
 
@@ -341,6 +346,17 @@ node calibrate.js --cv 5     <span class="c"># 5 折交叉验证，对外宣传�
     <div class="panel">
       <div class="panel-head"><h2>这个工具是怎么判的</h2><span class="small muted">方法、边界与免责</span></div>
       <div class="panel-body">
+        <div class="notice" style="border-color:#c7d2fe;background:linear-gradient(135deg,#eef2ff,#f5f3ff)">
+          <b>在线公开版：</b>
+          <a href="https://qscnet.github.io/Qsc-AI/" target="_blank" rel="noopener"
+             style="color:#4a6cf7;font-weight:700;text-decoration:none">qscnet.github.io/Qsc-AI</a>
+          —— 这个地址可以直接发给别人，打开就能用，不用装任何东西，稿子只在对方浏览器里跑。
+          <br>
+          想在自己机器上跑、要 REST API / Key 鉴权 / 限流配额，见项目仓库
+          <a href="https://github.com/qscnet/Qsc-AI" target="_blank" rel="noopener"
+             style="color:#4a6cf7;font-weight:600;text-decoration:none">github.com/qscnet/Qsc-AI</a>。
+        </div>
+
         <div class="notice">
           <b>先说边界。</b>本工具是<b>统计学启发式检测</b>，不是模型分类器，更不是「AI 生成鉴定书」。它衡量的是「这段文字有多符合中文大模型常见的书写习惯」。
           真人写得规整、或 AI 被逐句人工改写过，都可能误判；反过来，老练的提示词也可能骗过它。<b>对外使用时请只声称「疑似度 + 证据」，不要声称「判定」。</b>
