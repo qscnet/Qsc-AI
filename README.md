@@ -1,5 +1,11 @@
 # AI 味体检 · 中文小说 AI 痕迹辅助判断
 
+> **在线试用 → https://qscnet.github.io/Qsc-AI/**
+>
+> 纯前端，稿子在你自己的浏览器里跑，一个字都不上传。
+>
+> 想跑完整版（带 REST API、Key 鉴权、限流、配额）：
+pm install && node server.js
 面向**中文小说**的 AI 生成痕迹检测工具。纯前端可离线跑，也可一条命令起成 API 服务卖给客户。
 
 ```
